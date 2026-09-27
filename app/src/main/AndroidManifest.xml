@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 提醒权限按用户操作申请；拒绝后仍可记账。认证仅使用系统锁屏凭据。 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- 网络仅用于配置后的邮件发送；通知采集本身不需要联网。 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application android:name=".LedgerApp" android:label="费用统计清单"
+        android:theme="@style/Theme.FoldLedger" android:icon="@drawable/ic_ledger"
+        android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true"
+        android:usesCleartextTraffic="false" android:enableOnBackInvokedCallback="true">
+        <!-- 允许窗口调整，由 Compose 按当前窗口宽度决定单栏或双栏。 -->
+        <activity android:name=".MainActivity" android:exported="true" android:resizeableActivity="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <!-- 仅系统持有绑定权限；用户仍须在系统设置中主动授予通知使用权。 -->
+        <service android:name=".capture.PaymentListener" android:label="费用统计清单 · 支付通知采集"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:exported="true">
+            <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>
+        </service>
+    </application>
+</manifest>

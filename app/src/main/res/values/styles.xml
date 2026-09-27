@@ -1,0 +1,9 @@
+<resources>
+    <!-- Activity 启动时的基础主题；实际页面的动态配色与深色模式由 Compose 设置。 -->
+    <style name="Theme.FoldLedger" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">#F5F7F4</item>
+    </style>
+</resources>

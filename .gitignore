@@ -1,0 +1,28 @@
+.gradle/
+.kotlin/
+.idea/
+**/build/
+local.properties
+*.jks
+*.keystore
+.bootstrap/
+
+# 安装包、构建日志及本机诊断文件不上传。
+*.apk
+*.aab
+*.apks
+*.zip
+*.log
+*.hprof
+*.dmp
+captures/
+
+# 本机凭据、签名材料与环境变量；Gradle Wrapper JAR 是构建工具，保留在仓库。
+.env
+.env.*
+*.p12
+*.pfx
+*.pem
+*.key
+keystore.properties
+secrets.properties

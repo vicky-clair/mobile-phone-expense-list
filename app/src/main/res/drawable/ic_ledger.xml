@@ -1,0 +1,5 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="48dp" android:height="48dp" android:viewportWidth="48" android:viewportHeight="48">
+    <!-- 简单账单图标，以矢量路径适配不同屏幕密度，并用于私密通知图标。 -->
+    <path android:fillColor="#286653" android:pathData="M8,4h32v40h-32z" />
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="2" android:pathData="M17,15h14M17,23h14M17,31h9" />
+</vector>
