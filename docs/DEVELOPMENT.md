@@ -1,6 +1,6 @@
 # 费用统计清单开发文档
 
-版本基线：0.3.0 / versionCode 3。整理日期：2026-09-27。本文描述当前代码实现，适合接手开发、排查问题和扩展功能；不将未来计划当作已交付能力。
+版本基线：0.3.1 / versionCode 4。整理日期：2026-09-27。本文描述当前代码实现，适合接手开发、排查问题和扩展功能；不将未来计划当作已交付能力。
 
 语言入口：[English README](../README.md) · [中文 README](../README.zh-CN.md) · [日本語 README](../README.ja.md)。使用细节见[每日邮件说明](DAILY_MAIL.md)，构建证据见[验证记录](VERIFICATION.md)。
 
@@ -60,6 +60,7 @@ app/src/main/java/cn/foldledger/
   security/SessionViewModel.kt 界面认证状态、草稿和导航
   report/MailConfig.kt         配置校验、Keystore 加密读写
   report/DailyCsv.kt           北京时间区间及日报 CSV
+  report/ReportTiming.kt       统一的 01:30 到期边界与下一次执行时间
   report/ReportDatabase.kt     独立发送记录与状态
   report/ReportService.kt      快照、游标、发送及清理状态机
   report/SmtpMailer.kt         TLS 连接、MIME 邮件及发送前回调
@@ -182,9 +183,9 @@ SMTP 配置使用 Keystore 别名 `ledger-mail-v1`。存储格式为 Base64 编�
 
 ### 8.1 生成与调度
 
-`ReportSchedule.ensure` 使用唯一周期名 `daily-reports`，首次延迟至次日北京时间约 00:05，之后周期为 24 小时，KEEP 不替换已注册任务。实际执行受系统调度影响，不能承诺每日精确到点。
+`ReportSchedule.ensure` 停用旧版 `daily-reports` 周期任务，使用 `daily-reports-0130-日期` 为下一次北京时间 01:30 注册唯一一次性任务。生成 Worker 先等待下一日计划持久化，再处理本次日报；每次对齐北京时间，避免执行延迟导致每天漂移。实际执行受系统调度影响，不能承诺精确到分钟。
 
-`report-catch-up` 是唯一一次性补生成任务，应用启动或页面操作可触发。生成无需网络，每次从加密配置中的 nextDate 开始，补齐所有已结束的自然日，每批最多 31 日；仍有积压返回重试。
+`report-catch-up` 是唯一一次性补生成任务，应用启动或页面操作可触发。生成无需网络，每次从加密配置中的 nextDate 开始，补齐所有已到次日 01:30 的自然日，每批最多 31 日；仍有积压返回重试。
 
 每日报告先读取当天非忽略账目，生成带 BOM 的 CSV，用 AtomicFile 写入，再插入唯一发送记录，最后推进游标。写入失败回滚；游标未更新而进程中断时，下一次按已有 ID 复用快照。生成文件后、插入记录前中断的文件可在下一次生成同日期时覆盖。
 
@@ -202,6 +203,8 @@ SMTP 配置使用 Keystore 别名 `ledger-mail-v1`。存储格式为 Base64 编�
 | SENT 但 cleaned=false | 只重试清理，绝不再发邮件 | 成功后删除并标记 |
 | 用户确认 UNKNOWN 已收到 | SENT 后清理 | 删除 |
 | 用户明确要求 UNKNOWN 重发 | 校验原文件后改 PENDING | 保留并重发，可能重复 |
+
+生成与发送共用 `ReportTiming.cutoff`：01:30 前昨日尚未到期，即使旧版已经生成附件也会继续等待；显式测试邮件不受此限制。更早日期的积压日报可以在恢复时补发。
 
 `report-delivery` 使用有网络约束的唯一工作链和 APPEND_OR_REPLACE，不主动打断正在发送的邮件。初始退避为 30 分钟。更改配置后，已有重试任务可能仍需等待调度。
 
@@ -234,17 +237,20 @@ POST_NOTIFICATIONS 用于可选应用提醒，通知使用权通过系统单独�
 | DomainTest | 4 | 金额、来源限制、实验规则、CSV 安全 |
 | RepositoryTest | 8 | 并发去重、修订审计、不同方向汇总、删除、导出、模拟不入账 |
 | SessionTest | 2 | 初始锁定与后台敏感状态清理 |
-| ReportTest | 10 | 日界线、不可变快照、游标恢复、发送失败/不明、清理与暂停 |
+| ReportTest | 12 | 日界线、不可变快照、游标恢复、发送失败/不明、清理与暂停、01:30 防提前发送 |
 | SmtpMessageTest | 2 | 真实 MIME 编解码、授权码不泄漏、邮箱输入边界 |
 | PaymentTestLabTest | 3 | 12 场景方向金额、非法金额拒绝、银行隔离 |
-| RemindersTest | 5 | 总/分类开关、竞态、权限、Toast 控制 |
-| 合计 | 34 | 本地自动化回归 |
+| RemindersTest | 6 | 总/分类开关、竞态、权限、Toast 与后台显示控制 |
+| NotificationSafetyTest | 3 | 只读快照、不执行原通知动作、来源过滤与长度限制 |
+| ReportTimingTest | 3 | 01:30 边界、跨年/时区、延迟后对齐 |
+| ReportScheduleTest | 1 | 实际 WorkManager 的旧任务迁移与日期唯一计划 |
+| 合计 | 44 | 本地自动化回归 |
 
 Room 和通知行为在 Robolectric API 33 环境验证。日报发送状态测试使用替身发送器，不发送真实邮件；MIME 测试使用真实 Angus 编解码，但不建立 SMTP 连接。不能据此声称完成真实支付通知、Keystore、系统认证 UI、厂商后台或邮件投递测试。
 
 测试报告在 `app/build/reports/tests/testDebugUnitTest/index.html`，lint 报告在 `app/build/reports/lint-results-debug.html`。现有 lint 21 项警告主要是版本更新建议和 KTX 写法建议，另有 1 项状态类型提示；具体结果以[验证记录](VERIFICATION.md)为准。
 
-本轮只补文档与中文注释，不增加行为测试。通过注释前后的词法内容/XML 结构比对，以及现有构建、测试、lint 检查确认未引入业务修改。
+0.3.1 增加支付通知快照非干预、后台 Toast、01:30 时间边界及旧任务迁移回归。代码审计结论与证据见 [运行与支付安全审计](AUDIT.md)。
 
 ## 11. 扩展与维护流程
 

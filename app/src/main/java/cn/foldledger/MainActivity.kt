@@ -48,7 +48,10 @@ class MainActivity : FragmentActivity() {
                     }
                 }
                 cn.foldledger.capture.Reminders.feedback(this@MainActivity, app.settings,
-                    if (result.isSuccess) "CSV 已保存到您选择的位置" else "导出失败，请检查所选位置是否可写")
+                    if (result.isSuccess) "CSV 已保存到您选择的位置" else "导出失败，请检查所选位置是否可写") {
+                    // 导出结束时若用户已切换到支付 App，不在其他应用上弹出结果提示。
+                    lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) && session.unlocked
+                }
             }
         }
     }
@@ -113,6 +116,7 @@ class MainActivity : FragmentActivity() {
     override fun onResume() { super.onResume(); systemRevision++ }
     /** 真正进入后台立即锁定；配置重建不清空 ViewModel 中的编辑状态。 */
     override fun onStop() {
+        cn.foldledger.capture.Reminders.cancelFeedback()
         if (!isChangingConfigurations) { session.lock(); mailSettings = false }
         super.onStop()
     }

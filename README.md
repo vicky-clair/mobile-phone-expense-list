@@ -4,7 +4,7 @@
 
 A native Android expense ledger built with Kotlin and Jetpack Compose, with local transaction records, payment-notification parsing, daily CSV email reports, and device-credential protection.
 
-**Version 0.3.0 — development build.** Requires Android 13 or later. Installation is not restricted to Samsung devices, but physical-device compatibility has not been verified. The installed name and current interface are Chinese; translated README files do not add UI localization.
+**Version 0.3.1 — development build.** Requires Android 13 or later. Installation is not restricted to Samsung devices, but physical-device compatibility has not been verified. The installed name and current interface are Chinese; translated README files do not add UI localization.
 
 ## Features
 
@@ -59,7 +59,7 @@ Keep package ID `cn.foldledger` and the signing key unchanged when upgrading. Re
 
 ## Daily report behavior
 
-Reports use `Asia/Shanghai`: 00:00 inclusive to the following 00:00 exclusive. Enabling starts with the current day; the first report is generated the following day. Initial scheduling targets approximately 00:05, and delayed runs catch up date by date.
+Reports use `Asia/Shanghai`: 00:00 inclusive to the following 00:00 exclusive. Enabling starts with the current day; the first report is generated the following day. Each day is scheduled for 01:30 Beijing time. Yesterday's report cannot be sent early through startup, retries, or manual checks. Delayed runs catch up overdue dates; explicit test emails can run immediately.
 
 Each CSV contains confirmed totals and transaction details. Unreviewed entries are marked separately; transfers and repayments are excluded from expenses; ignored entries are excluded from daily reports. Generated reports are immutable snapshots. Later ledger edits do not silently rewrite or resend them.
 
@@ -85,13 +85,14 @@ app/schemas/                     Exported Room schemas
 docs/                            Development and verification documents
 ```
 
-The regression suite contains **34 tests** for accounting, reminders, parser isolation, report recovery, and MIME encoding. See the [verification record](docs/VERIFICATION.md) for build results and the APK checksum. Local tests do not validate real payment notifications, device Keystore behavior, actual email delivery, or vendor background restrictions.
+The regression suite contains **44 tests** for accounting, reminders, notification non-interference, parser isolation, 01:30 scheduling, report recovery, and MIME encoding. See the [verification record](docs/VERIFICATION.md) for build results and the APK checksum. Local tests do not validate real payment notifications, device Keystore behavior, actual email delivery, or vendor background restrictions.
 
 ## Documentation
 
 | Document | Purpose | Language |
 | --- | --- | --- |
 | [Development guide](docs/DEVELOPMENT.md) | Architecture, data model, concurrency, state machine, maintenance | Chinese |
+| [Runtime and payment audit](docs/AUDIT.md) | Findings, fixes, payment non-interference, and device-test limits | Chinese |
 | [Chinese README](README.zh-CN.md) | Setup and usage companion | Chinese |
 | [Japanese README](README.ja.md) | Setup and usage companion | Japanese |
 | [Daily email guide](docs/DAILY_MAIL.md) | SMTP setup, date windows, retries and deletion | Chinese |

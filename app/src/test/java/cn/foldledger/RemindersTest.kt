@@ -22,6 +22,11 @@ import org.robolectric.shadows.ShadowToast
 @Config(sdk = [33], application = Application::class)
 /** 使用 Robolectric 验证系统通知和 Toast 的开关行为，不依赖真实通知栏。 */
 class RemindersTest {
+    /** 异步导出结束时已离开应用，不得在支付界面上显示操作 Toast。 */
+    @Test fun backgroundOperationCannotShowToast() = runTest {
+        Reminders.feedback(app, settings, "导出成功") { false }
+        assertEquals(0, ShadowToast.shownToastCount())
+    }
     private lateinit var app: Application
     private lateinit var settings: SettingsStore
     private lateinit var manager: NotificationManager

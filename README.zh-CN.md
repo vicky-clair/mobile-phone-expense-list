@@ -2,7 +2,7 @@
 
 [English（主文档）](README.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
-使用 Kotlin、Jetpack Compose、Room、DataStore 和 WorkManager 开发的原生 Android 记账应用。当前为 **0.3.0 开发版**，最低 Android 13，界面与安装名称为中文。不限制手机品牌，但尚未完成真机兼容性验收。
+使用 Kotlin、Jetpack Compose、Room、DataStore 和 WorkManager 开发的原生 Android 记账应用。当前为 **0.3.1 开发版**，最低 Android 13，界面与安装名称为中文。不限制手机品牌，但尚未完成真机兼容性验收。
 
 ## 主要功能
 
@@ -51,7 +51,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## 日报规则
 
-- 固定 `Asia/Shanghai` 时区，每日 00:00（含）至次日 00:00（不含）。启用从当天开始，首次日报次日生成，初始计划约 00:05 执行，延迟后逐日补生成。
+- 固定 `Asia/Shanghai` 时区，每日 00:00（含）至次日 00:00（不含）。启用从当天开始，首次日报次日生成，每天计划在 01:30 执行；启动、重试和手动检查均不会提前发送昨日的日报，延迟后补发已到期日期。测试邮件可立即主动发送。
 - 日报包含确认汇总与明细；待核对独立标注，转账/还款不计支出，已忽略项不进入日报。
 - 已生成文件为不可变快照，后续补录或修订不自动改写或重发；昨日预览读取当前账本，可能与历史快照不同。
 - 支持隐式 TLS 与 STARTTLS，始终验证证书；仅支持账号/授权码登录，不支持只允许 OAuth 的账号流程。
@@ -61,9 +61,10 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## 开发入口
 
-主源码位于 `app/src/main/java/cn/foldledger/`，按 `capture`、`data`、`domain`、`report`、`security`、`ui` 分包。测试位于 `app/src/test/java/cn/foldledger/`，目前有 34 项回归测试。项目自有 Kotlin、测试、构建配置和 XML 带中文解释性注释；生成文件与第三方 Gradle 启动脚本保持原样。
+主源码位于 `app/src/main/java/cn/foldledger/`，按 `capture`、`data`、`domain`、`report`、`security`、`ui` 分包。测试位于 `app/src/test/java/cn/foldledger/`，目前有 44 项回归测试，新增支付通知非干预和 01:30 调度检查。项目自有 Kotlin、测试、构建配置和 XML 带中文解释性注释；生成文件与第三方 Gradle 启动脚本保持原样。
 
 - [开发文档](docs/DEVELOPMENT.md)：架构、数据、并发、状态机、安全边界与扩展方式。
+- [运行与支付审计](docs/AUDIT.md)：发现的问题、修复及真机验证边界。
 - [验证记录](docs/VERIFICATION.md)：构建、测试、签名及 APK 校验值。
 - [真机验收](docs/ACCEPTANCE.md)：尚需执行的手机检查。
 - [样本规范](docs/SAMPLES.md)：实验格式及真实样本要求。

@@ -15,8 +15,8 @@ android {
         // 最低 Android 13，targetSdk 与编译 SDK 分开管理，升级目标版本前须验收后台行为。
         minSdk = 33
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.3.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true }

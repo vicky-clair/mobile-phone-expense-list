@@ -38,13 +38,7 @@ class PaymentListener : NotificationListenerService() {
     }
     /** 先检查白名单和组汇总，再截取有限长度文本；非阻塞入队，禁止在系统回调中做网络操作。 */
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        if (sbn.packageName !in enabledSources || sbn.packageName !in Sources.names) return
-        if (sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
-        val extras = sbn.notification.extras
-        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.take(200) ?: ""
-        val text = (extras.getCharSequence(Notification.EXTRA_BIG_TEXT)
-            ?: extras.getCharSequence(Notification.EXTRA_TEXT))?.toString()?.take(2000) ?: ""
-        val payload = NotificationPayload(sbn.packageName, sbn.key, title, text, sbn.postTime)
+        val payload = snapshotPaymentNotification(sbn, enabledSources) ?: return
         if (!queue.trySend(payload).isSuccess) dropped.incrementAndGet()
     }
     /** 记录监听连接时间，供设置页判断最近状态。 */
@@ -56,4 +50,20 @@ class PaymentListener : NotificationListenerService() {
     }
     /** 关闭队列并取消服务协程，释放与本次监听生命周期绑定的资源。 */
     override fun onDestroy() { queue.close(); scope.cancel(); super.onDestroy() }
+}
+
+/** 只读取通知快照，不修改或撤销原通知，不执行 contentIntent、按钮动作或支付链接。 */
+internal fun snapshotPaymentNotification(sbn: StatusBarNotification, enabledSources: Set<String>): NotificationPayload? {
+    if (sbn.packageName !in enabledSources || sbn.packageName !in Sources.names) return null
+    if (sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return null
+    return try {
+        val extras = sbn.notification.extras
+        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.take(200) ?: ""
+        val text = (extras.getCharSequence(Notification.EXTRA_BIG_TEXT)
+            ?: extras.getCharSequence(Notification.EXTRA_TEXT))?.toString()?.take(2000) ?: ""
+        NotificationPayload(sbn.packageName, sbn.key, title, text, sbn.postTime)
+    } catch (_: RuntimeException) {
+        // 异常 Bundle 或类型不匹配只放弃本条通知，不将异常传播到系统回调。
+        null
+    }
 }

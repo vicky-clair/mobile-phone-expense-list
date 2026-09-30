@@ -59,7 +59,7 @@ fun MailSettingsScreen(app: LedgerApp, onBack: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         TextButton(onClick = onBack) { Text("返回设置") }
         Text("每日费用日志", style = MaterialTheme.typography.headlineMedium)
-        Text("每天按北京时间 00:00–24:00 生成一个 CSV，次日约 00:05 发送。首次启用从当天开始；暂停后重新启用从当天恢复。关机、休眠或断网会延后，恢复后逐日补生成。")
+        Text("每天按北京时间 00:00–24:00 统计一个 CSV，次日凌晨 01:30 安排生成和发送，不提前发送。首次启用从当天开始；暂停后重新启用从当天恢复。关机、休眠或断网会延后，恢复后补发已到期日报。测试邮件可随时主动发送。")
         Text("附件包含商户、金额、分类与状态。待核对账目不计入已确认汇总；已忽略账目不导出。邮件服务器确认接收后删除本机日报文件，原账本保留。邮件副本仍会保留在邮箱服务中。")
         Row { Text("启用每日邮件", Modifier.weight(1f)); Switch(config.enabled, { config = config.copy(enabled = it) }, enabled = ready && !busy) }
         OutlinedTextField(config.host, { config = config.copy(host = it.trim()) }, enabled = ready && !busy,

@@ -19,9 +19,9 @@ object Reminders {
     /** 取消仍在显示的操作 Toast 并释放引用。 */
     fun cancelFeedback() { feedback?.cancel(); feedback = null }
     /** 操作结果 Toast 受总开关和操作提示开关控制；与关闭开关串行执行。 */
-    suspend fun feedback(context: Context, settings: SettingsStore, message: String) = SettingsStore.reminderMutex.withLock {
+    suspend fun feedback(context: Context, settings: SettingsStore, message: String, canShow: () -> Boolean = { true }) = SettingsStore.reminderMutex.withLock {
         val prefs = settings.flow.first()
-        if (prefs.remindersEnabled && prefs.inAppReminder) {
+        if (prefs.remindersEnabled && prefs.inAppReminder && canShow()) {
             cancelFeedback()
             feedback = android.widget.Toast.makeText(context.applicationContext, message, android.widget.Toast.LENGTH_LONG).also { it.show() }
         }

@@ -20,6 +20,26 @@ import java.util.UUID
 @Config(sdk = [33], application = android.app.Application::class)
 /** 使用真实内存 Room 与替身发送器验证日报状态机，不向真实邮箱发送邮件。 */
 class ReportTest {
+    /** 旧版本提前生成的日报也必须等到 01:30；主动测试邮件不受该时间限制。 */
+    @Test fun legacySnapshotWaitsUntil0130ButTestMailCanSendNow() = runTest {
+        val service = service()
+        service.generate(day.plusDays(1))
+        service.queueTest()
+        assertFalse(service.deliver(java.time.Instant.parse("2026-09-26T17:29:59Z")))
+        assertEquals(DeliveryState.PENDING, reportsDb.reports().get(id)?.state)
+        assertTrue(File(folder, "$id.csv").exists())
+        assertEquals(DeliveryState.SENT, reportsDb.reports().history().first().single { it.isTest }.state)
+        assertFalse(service.deliver(java.time.Instant.parse("2026-09-26T17:30:00Z")))
+        assertEquals(DeliveryState.SENT, reportsDb.reports().get(id)?.state)
+    }
+    /** 应用在零点后启动或手动检查时，生成入口也不能提前处理昨日。 */
+    @Test fun catchUpRespectsSame0130Boundary() = runTest {
+        val service = service()
+        service.generate(ReportTiming.cutoff(java.time.Instant.parse("2026-09-26T16:10:00Z")))
+        assertNull(reportsDb.reports().get(id))
+        service.generate(ReportTiming.cutoff(java.time.Instant.parse("2026-09-26T17:30:00Z")))
+        assertNotNull(reportsDb.reports().get(id))
+    }
     private lateinit var ledgerDb: LedgerDatabase
     private lateinit var reportsDb: ReportDatabase
     private lateinit var folder: File

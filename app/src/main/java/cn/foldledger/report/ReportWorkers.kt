@@ -7,18 +7,21 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
 import java.time.Duration
-import java.time.ZonedDateTime
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 
-/** WorkManager 调度入口；唯一名称避免重复周期任务，生成与有网发送分离。 */
+/** WorkManager 调度入口；每天按日期注册唯一任务，生成与有网发送分离。 */
 object ReportSchedule {
-    /** 首次安排次日约 00:05 的 24 小时周期任务，KEEP 保留已存在计划；系统可能延后执行。 */
-    fun ensure(context: Context) {
-        val now = ZonedDateTime.now(DailyCsv.zone)
-        val next = now.toLocalDate().plusDays(1).atTime(0, 5).atZone(DailyCsv.zone)
-        val work = PeriodicWorkRequestBuilder<GenerateReportsWorker>(24, TimeUnit.HOURS)
-            .setInitialDelay(Duration.between(now, next)).setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES).build()
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork("daily-reports", ExistingPeriodicWorkPolicy.KEEP, work)
+    /** 安排下一次 01:30，并停用旧版 00:05 周期计划；系统休眠时仍可能延后。 */
+    fun ensure(context: Context): Operation {
+        val now = Instant.now()
+        val next = ReportTiming.nextRun(now)
+        val manager = WorkManager.getInstance(context)
+        manager.cancelUniqueWork("daily-reports")
+        val work = OneTimeWorkRequestBuilder<GenerateReportsWorker>()
+            .setInitialDelay(Duration.between(now, next.toInstant()))
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES).build()
+        return manager.enqueueUniqueWork("daily-reports-0130-${next.toLocalDate()}", ExistingWorkPolicy.KEEP, work)
     }
     /** 应用启动或用户操作时安排一次补生成检查，已有检查运行时不重复添加。 */
     fun catchUp(context: Context) {
@@ -39,6 +42,9 @@ class GenerateReportsWorker(context: Context, params: WorkerParameters) : Corout
     /** 在 IO 调度器运行；取消必须向上传播，其他可恢复错误交给 WorkManager 退避重试。 */
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
+            // 先持久安排下一天；当前任务即便生成失败，也不会中断后续每天的计划。
+            // 此处已在 IO 线程，等待 WorkManager 落库不会阻塞手机主线程。
+            ReportSchedule.ensure(applicationContext).result.get()
             val more = (applicationContext as LedgerApp).reports.generate()
             ReportSchedule.send(applicationContext)
             if (more) Result.retry() else Result.success()

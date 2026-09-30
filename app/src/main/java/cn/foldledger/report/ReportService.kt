@@ -8,6 +8,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.time.LocalDate
+import java.time.Instant
 import java.util.UUID
 
 
@@ -65,7 +66,7 @@ class ReportService(
         DailyCsv.render(day, ledger.reportRows(start, end))
     }
     /** 逐日补生成，单批最多 31 日；先保存文件和记录，再推进游标，返回是否还有积压。 */
-    suspend fun generate(today: LocalDate = DailyCsv.today()): Boolean = mutex.withLock {
+    suspend fun generate(today: LocalDate = ReportTiming.cutoff()): Boolean = mutex.withLock {
         var config = configStore.read()
         if (!config.enabled) return@withLock false
         config.validate()
@@ -95,11 +96,13 @@ class ReportService(
         dao.insert(DailyReport(id, DailyCsv.today().toString(), config.recipient, createdAt = System.currentTimeMillis(), digest = sha256(text), isTest = true))
     }
     /** 提交前失败可重试；提交后的不确定结果转 UNKNOWN；已接受记录只清理、不重发。 */
-    suspend fun deliver(): Boolean = mutex.withLock {
+    suspend fun deliver(now: Instant = Instant.now()): Boolean = mutex.withLock {
         dao.sent().forEach { cleanupAccepted(it) }
         val config = configStore.read()
         var retry = false
-        for (report in dao.outstanding(config.enabled)) {
+        // 包括旧版本已经生成的附件在内，正式日报也不能绕过次日 01:30 边界。
+        val dueBefore = ReportTiming.cutoff(now).toString()
+        for (report in dao.outstanding(config.enabled, dueBefore)) {
             if (report.state == DeliveryState.SENDING) {
                 dao.update(report.copy(state = DeliveryState.UNKNOWN, detail = "发送过程中中断，结果不明；请先检查邮箱"))
                 continue
@@ -130,7 +133,7 @@ class ReportService(
                 if (!uncertain) retry = true
             }
         }
-        retry || dao.outstanding(config.enabled).any { it.state == DeliveryState.PENDING }
+        retry || dao.outstanding(config.enabled, dueBefore).any { it.state == DeliveryState.PENDING }
     }
     /** 用户核对邮箱后确认收到或明确重发；重发前仍要检查原快照完整性。 */
     suspend fun resolve(id: String, received: Boolean) = mutex.withLock {

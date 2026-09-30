@@ -31,9 +31,9 @@ interface ReportDao {
     @Query("SELECT * FROM daily_reports ORDER BY createdAt DESC LIMIT 50") fun history(): Flow<List<DailyReport>>
     /** 按唯一报告 ID 查找，支持生成幂等和发送状态恢复。 */
     @Query("SELECT * FROM daily_reports WHERE id = :id") suspend fun get(id: String): DailyReport?
-    @Query("SELECT * FROM daily_reports WHERE state = 'SENDING' OR (state = 'PENDING' AND (:includeDaily OR isTest = 1)) ORDER BY createdAt LIMIT 5")
+    @Query("SELECT * FROM daily_reports WHERE state = 'SENDING' OR (state = 'PENDING' AND (:includeDaily OR isTest = 1) AND (isTest = 1 OR day < :dueBefore)) ORDER BY createdAt LIMIT 5")
     /** 每批最多 5 条；暂停日报后仍允许处理用户主动发起的测试邮件及中断状态。 */
-    suspend fun outstanding(includeDaily: Boolean = true): List<DailyReport>
+    suspend fun outstanding(includeDaily: Boolean = true, dueBefore: String = "9999-12-31"): List<DailyReport>
     /** 读取已被接受但尚未清理文件的记录，恢复清理时不能再次发送。 */
     @Query("SELECT * FROM daily_reports WHERE state = 'SENT' AND cleaned = 0") suspend fun sent(): List<DailyReport>
     /** 统计所有未完成状态，限制收件地址变更和测试邮件堆积。 */

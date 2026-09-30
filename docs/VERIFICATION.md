@@ -1,8 +1,6 @@
 # 费用统计清单验证记录
 
-日期：2026-09-27。版本：0.3.0 / versionCode 3。此次新增提醒总开关、操作提示开关及支付测试面板，保留每日日志邮件与系统锁屏凭据认证。
-
-同日文档维护后重新验证：新增现行开发文档、英文主 README 与中日文辅助 README，补齐中文代码注释。应用版本及业务行为未改变；下列 APK 校验值对应文档维护后的重新构建产物。
+日期：2026-09-27。版本：0.3.1 / versionCode 4。本次完成支付非干预代码审计，修复后台导出提示及异常通知读取边界，并将日报迁移到每天北京时间 01:30，统一生成和发送到期检查。完整发现与限制见 `AUDIT.md`。
 
 ## 构建与安装包
 
@@ -16,8 +14,8 @@
 
 调试 APK：`app/build/outputs/apk/debug/app-debug.apk`。
 
-- 大小：34,305,712 字节（调试构建，包含开发工具，不能代表正式版包体）。
-- SHA-256：`3596b454dab3e17b572b7990c5e10a472cf67b4d29c9943dc5c5f1df97e75b9b`。
+- 大小：34,302,420 字节（调试构建，包含开发工具，不能代表正式版包体）。
+- SHA-256：`3fea3f75b625ccb52316a364c270216dc7f5520ce2745d1c90d4fb697a18512b`。
 - `apksigner verify --verbose`：通过，APK Signature Scheme v2。
 - 从 APK 中提取的配置：包名 `cn.foldledger`，minSdk 33，targetSdk 36，compileSdk 37。
 - 应用标签已核实为“费用统计清单”。
@@ -39,11 +37,14 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 | DomainTest | 4 | 0 / 0 / 0 |
 | RepositoryTest | 8 | 0 / 0 / 0 |
 | SessionTest | 2 | 0 / 0 / 0 |
-| ReportTest | 10 | 0 / 0 / 0 |
+| ReportTest | 12 | 0 / 0 / 0 |
 | SmtpMessageTest | 2 | 0 / 0 / 0 |
 | PaymentTestLabTest | 3 | 0 / 0 / 0 |
-| RemindersTest | 5 | 0 / 0 / 0 |
-| 合计 | 34 | 0 / 0 / 0 |
+| RemindersTest | 6 | 0 / 0 / 0 |
+| NotificationSafetyTest | 3 | 0 / 0 / 0 |
+| ReportTimingTest | 3 | 0 / 0 / 0 |
+| ReportScheduleTest | 1 | 0 / 0 / 0 |
+| 合计 | 44 | 0 / 0 / 0 |
 
 覆盖金额精度与边界、来源和格式限制、非交易拒绝、CSV 转义与公式防护、并发重放幂等、同额消费独立保留、同键复用核对、人工修订不被旧通知覆盖、观察事件和审计保留、忽略撤销、不同交易类型统计、来源开关、删除后停止采集、后台锁定清除敏感草稿。
 
@@ -55,12 +56,14 @@ Room 仓库测试在 Robolectric Android 13 / API 33 环境运行，不是 Fold5
 
 Android lint：0 错误、21 警告、1 提示。18 项警告是工具/依赖更新或 targetSdk 版本建议，3 项是 Uri/SharedPreferences 的 KTX 写法建议；另有 `mutableIntStateOf` 提示。SharedPreferences 显式 commit 用于检查配置保存成功。targetSdk 36 按产品文档保留，未关闭检查隐藏警告。报告：`app/build/reports/lint-results-debug.html`。
 
-本次文档维护后完整检查 `BUILD SUCCESSFUL in 48s`，56 个任务（31 执行，25 最新），日志 `build-documentation.log`。assembleDebug、testDebugUnitTest、lintDebug 均通过，34 项测试无失败或错误，APK v2 签名再次验证通过。
+本次最终完整检查 `BUILD SUCCESSFUL in 36s`，56 个任务（7 执行，49 最新），日志 `build-audit-final.log`。assembleDebug、testDebugUnitTest、lintDebug 均通过，44 项测试无失败、错误或跳过，APK v2 签名再次验证通过。测试使用公开但已弃用的 StatusBarNotification 构造器生成通知，有一项测试编译弃用提示，不涉及生产代码。
 
-注释前后对比：34 个 Kotlin/Gradle/XML 文件的非注释代码或 XML 结构一致；全部 27 个 Kotlin 源码与测试文件包含中文文档注释。新增开发文档与三语 README 的 43 处本地链接、代码围栏及 UTF-8 内容检查通过。Gradle properties 仅补解释性注释，生成 schema 和第三方 Wrapper 启动脚本未手工修改。调试 APK 因源码行号等构建信息变化，校验值随重建更新。
+新增回归验证：原通知字段和动作不变、不触发原通知广播；后台导出不可显示 Toast；01:29:59 不到期而 01:30:00 到期；跨年和手机时区不改变北京时间规则；旧版已生成文件不能提前发，测试邮件可以即时发；实际 WorkManager 中旧周期任务被取消，同日期重复注册仍只有一个 01:30 计划。主账本和日报 schema 无结构修改，未使用破坏性迁移。
 
 ## 验证边界
 
 尚未连接真机，未验证系统密码交互、设备 Keystore、真实 SMTP TLS 连接/收件、One UI 后台限制、折叠切换、耗电或字体缩放。发送状态机测试使用替身发送器，MIME 测试使用真实邮件库；本轮未配置真实邮箱、未发送真实邮件。安装后先按 `DAILY_MAIL.md` 配置并发送测试邮件，再启用日报。
+
+`adb devices` 返回空设备列表。最终 APK 合并权限已核对：没有短信、无障碍、悬浮窗、屏幕捕获或精确闹钟权限声明；通知监听受系统绑定权限保护。未发现支付操作调用，但不能用代码审计推断所有手机上绝对零干扰或零耗电。
 
 WorkManager 不保证准点执行；SMTP 服务器接收不等于收件箱投递，无法保证严格恰好发送一次。实验通知解析仍只覆盖合成格式，候选默认待确认；不代表真实支付宝/微信格式全面支持。设备验收步骤见 `ACCEPTANCE.md`。

@@ -8,7 +8,7 @@ import cn.foldledger.data.*
 class LedgerApp : Application() {
     private val reportDatabase by lazy { Room.databaseBuilder(this, cn.foldledger.report.ReportDatabase::class.java, "reports.db").build() }
     val reports by lazy { cn.foldledger.report.ReportService(cn.foldledger.report.SecureMailConfig(this), reportDatabase.reports(), database.ledgerDao(), java.io.File(noBackupFilesDir, "daily-reports")) }
-    /** 注册唯一日报周期任务，并安排一次补生成检查；任务自身检查是否启用邮件。 */
+    /** 注册下一次北京时间 01:30 日报任务，并补查已到期日报；任务自身检查邮件开关。 */
     override fun onCreate() {
         super.onCreate()
         cn.foldledger.report.ReportSchedule.ensure(this)
